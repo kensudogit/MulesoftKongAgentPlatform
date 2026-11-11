@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: local_only_password
+      POSTGRES_DB: api_governance
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d api_governance"]
+      interval: 5s
+      retries: 15
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  api:
+    build: ./samples/backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://demo:local_only_password@db:5432/api_governance
+      DEMO_AUTH: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+  kong:
+    image: kong:3.9
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /opt/kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: "off"
+    volumes:
+      - ./kong/kong.yml:/opt/kong/kong.yml:ro
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      - api
+  dashboard:
+    build: ./samples/frontend
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+volumes:
+  pgdata:

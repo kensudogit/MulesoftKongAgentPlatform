@@ -1,0 +1,29 @@
+# EXAMPLE ONLY — not used by docker-compose.
+# Kong OSS can use the open-source jwt plugin with a configured JWKS/key;
+# full OIDC/introspection features often require Kong Enterprise or Konnect.
+# Replace placeholders; never commit real secrets or tenant-specific production keys.
+_format_version: "3.0"
+services:
+  - name: agent-governance-api
+    url: https://governance-api.internal.example
+    routes:
+      - name: governance-route
+        paths: ["/api/v1"]
+        strip_path: false
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid
+          echo_downstream: true
+      - name: rate-limiting
+        config:
+          minute: 600
+          policy: redis
+      # Enable only after validating edition compatibility and key material distribution:
+      # - name: jwt
+      #   config:
+      #     claims_to_verify: [exp]
+      #     key_claim_name: kid
+      # Prefer terminating TLS at the edge and validating Entra JWT (iss/aud/sig)
+      # either in Kong (edition-dependent) and/or FastAPI (samples/backend/app/auth.py).

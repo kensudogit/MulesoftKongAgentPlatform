@@ -1,0 +1,86 @@
+openapi: 3.1.0
+info:
+  title: AI Agent API Governance Demo
+  version: 0.1.0
+  description: >
+    Local demonstration API for usage/chargeback recording.
+    Production must replace demo headers with Entra JWT validation.
+servers:
+  - url: http://127.0.0.1:8000
+    description: Direct FastAPI (loopback)
+  - url: http://127.0.0.1:8001
+    description: Via Kong proxy (loopback)
+paths:
+  /health:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+  /api/v1/usage:
+    get:
+      summary: List usage aggregates for caller's department
+      parameters:
+        - $ref: "#/components/parameters/DemoAgent"
+        - $ref: "#/components/parameters/DemoDepartment"
+      responses:
+        "200":
+          description: Aggregated usage
+        "401":
+          description: Missing demo identity
+        "503":
+          description: Production identity not configured
+    post:
+      summary: Record a billable usage event
+      parameters:
+        - $ref: "#/components/parameters/DemoAgent"
+        - $ref: "#/components/parameters/DemoDepartment"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Call"
+      responses:
+        "200":
+          description: Recorded
+        "401":
+          description: Missing demo identity
+        "422":
+          description: Validation error
+components:
+  parameters:
+    DemoAgent:
+      name: X-Demo-Agent
+      in: header
+      required: true
+      schema:
+        type: string
+        maxLength: 120
+      description: LOCAL DEMO ONLY — never use in production
+    DemoDepartment:
+      name: X-Demo-Department
+      in: header
+      required: true
+      schema:
+        type: string
+        maxLength: 120
+      description: LOCAL DEMO ONLY — never use in production
+  schemas:
+    Call:
+      type: object
+      required: [api_name]
+      properties:
+        api_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        request_count:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
+        unit_cost_usd:
+          type: string
+          description: Decimal as string
+          default: "0.001"
