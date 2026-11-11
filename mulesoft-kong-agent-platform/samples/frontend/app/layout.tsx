@@ -1,2 +1,23 @@
+import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-export default function RootLayout({children}:{children:ReactNode}) { return <html lang="ja"><body style={{fontFamily:'sans-serif',maxWidth:920,margin:'48px auto',padding:20}}>{children}</body></html>; }
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'Agent API Console',
+  description: 'AI-Agent API の利用量とコストを可視化するローカルデモ',
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="ja">
+      <body>
+        <div className="aurora" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        {children}
+      </body>
+    </html>
+  );
+}
