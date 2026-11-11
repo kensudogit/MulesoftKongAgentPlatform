@@ -13,7 +13,8 @@ from .registry import AgentPolicy
 def assert_within_quota(db: Session, usage_model, policy: AgentPolicy, additional: int = 1) -> None:
     start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     used = db.execute(
-        select(func.count(usage_model.id)).where(
+        # Quota is in requests, not rows: sum request_count so batched calls count fully.
+        select(func.coalesce(func.sum(usage_model.request_count), 0)).where(
             usage_model.agent_id == policy.agent_id,
             usage_model.timestamp >= start,
         )

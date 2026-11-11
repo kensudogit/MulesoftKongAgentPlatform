@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, Numeric, String, create_engine, func, select
+from sqlalchemy import DateTime, Integer, Numeric, String, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.pool import StaticPool
 
@@ -39,6 +39,7 @@ class Usage(Base):
     agent_id: Mapped[str] = mapped_column(String(120))
     department: Mapped[str] = mapped_column(String(120))
     api_name: Mapped[str] = mapped_column(String(120))
+    request_count: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(14, 6))
 
 
@@ -101,6 +102,7 @@ def record(
         agent_id=principal.agent_id,
         department=principal.department,
         api_name=call.api_name,
+        request_count=call.request_count,
         cost_usd=cost,
     )
     db.add(event)

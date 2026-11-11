@@ -57,6 +57,19 @@ def _jwks_url() -> str:
     return f"https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys"
 
 
+_JWKS_CLIENTS: dict[str, PyJWKClient] = {}
+
+
+def _jwks_client(url: str) -> PyJWKClient:
+    # Reuse one client per JWKS URL so its key cache survives across requests
+    # (a new PyJWKClient per request re-fetches keys from Entra every time).
+    client = _JWKS_CLIENTS.get(url)
+    if client is None:
+        client = PyJWKClient(url, cache_keys=True, lifespan=3600)
+        _JWKS_CLIENTS[url] = client
+    return client
+
+
 def _allowed_tids() -> set[str]:
     raw = os.getenv("ENTRA_ALLOWED_TIDS", os.getenv("ENTRA_TENANT_ID", ""))
     return {x.strip() for x in raw.split(",") if x.strip()}
@@ -89,7 +102,7 @@ def verify_entra_bearer(authorization: str | None) -> dict[str, Any]:
     token = authorization.split(" ", 1)[1].strip()
     audience = os.getenv("ENTRA_AUDIENCE", "")
     issuer = _issuer()
-    jwks_client = PyJWKClient(_jwks_url(), cache_keys=True)
+    jwks_client = _jwks_client(_jwks_url())
     try:
         signing_key = jwks_client.get_signing_key_from_jwt(token)
         claims = jwt.decode(
@@ -155,7 +168,9 @@ def principal_from_claims(claims: dict[str, Any], agent_hint: str | None) -> Pri
     if policy is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unknown agent")
 
-    if policy.bound_client_ids and azp not in policy.bound_client_ids:
+    # Fail closed: in Entra mode an agent must be bound to at least one client id,
+    # otherwise any valid token could claim it via the caller-supplied hint.
+    if not policy.bound_client_ids or azp not in policy.bound_client_ids:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Agent/client binding mismatch")
 
     # OBO: preserve end-user oid separately when present (idtyp != app).
